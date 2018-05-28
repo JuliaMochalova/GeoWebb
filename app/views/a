@@ -1,0 +1,15 @@
+double min=5;
+                int[] ind=new int[2];
+                double[] rast=new double[2];
+                for(int i=0;i<list.size();i++){
+                    index[i]= list.get(i).latitude+","+list.get(i).longitude;
+                    rast[0]=Math.sqrt(Math.pow(list.get(i).latitude-oneLatLng[0],2)+Math.pow(list.get(i).longitude-oneLatLng[1],2));
+                    if (rast[0]<min){
+                        min=rast[0];
+                        ind[0]=i;
+                    }
+                    if (Math.abs(list.get(i).latitude-twoLatLng[0])<min){
+                        min=Math.abs(list.get(i).latitude-twoLatLng[0]);
+                        ind[1]=i;
+                    }
+                }

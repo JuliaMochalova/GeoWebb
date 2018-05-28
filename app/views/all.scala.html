@@ -1,0 +1,464 @@
+@(allSectors: List[Sectors], allTracks: List[models.Tracks], CommentsList: List[Comments])
+
+@import helper._
+
+
+<!DOCTYPE html>
+<html xmlns:display="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>Google Maps api v3 - enableEditing for polylines</title>
+        <script type="text/javascript" src="http://maps.google.com/maps/api/js?key=AIzaSyC1YyN43QV769nJURYMcbfriPf_BvonbVc&callback=initMap&signed_in=true&libraries=geometry"></script>
+        <script type="text/javascript">
+                var map = null;
+                var polyLine;
+                var markers = [];
+                var clearMarkers=[];
+                var groupMarkers=[];
+                var selectPathes=[];
+                var tosPathes=[];
+                var pathes=[];
+                var routeList=[];
+                var tRoute;
+                var pathesId=[];
+                var routeIntersection;
+                var str="";
+
+
+                var g = google.maps;
+
+                var initMap = function(mapHolder) {
+                    markers = [];
+
+
+                    var mapOptions = {
+                        zoom: 11,
+                        center: new g.LatLng(52.21080929782432, 103.88178293754277),
+                        mapTypeId: g.MapTypeId.ROADMAP,
+                        draggableCursor: 'auto',
+                        draggingCursor: 'move',
+                        disableDoubleClickZoom: true
+                    };
+                    map = new g.Map(document.getElementById(mapHolder), mapOptions);
+                    g.event.addListener(map, "click", mapLeftClick);
+                    mapHolder = null;
+                    mapOptions = null;
+
+                };
+
+                var displayTracks = function(){
+
+                    @for(j <- 0 to allSectors.size-1){
+                    path=[];
+                    time=[];
+                    tRoute=[];
+                        @for(i <- 0 to (allSectors.get(j).trackList.length-1)){
+                            @if(i==0 || i==(allSectors.get(j).trackList.length-1)){
+                                startMarkers(new g.LatLng(@allSectors.get(j).trackList.get(i).latitude, @allSectors.get(j).trackList.get(i).longitude), 1);
+
+                            }else{
+                                startMarkers(new g.LatLng(@allSectors.get(j).trackList.get(i).latitude, @allSectors.get(j).trackList.get(i).longitude), 0);
+                            }
+                        }
+                    pathes[@j]=(path);
+                    addPolyline(pathes);
+
+                    @for(k <- 0 to allSectors.get(j).routeList.length-1){
+                        tRoute.push(@allSectors.get(j).routeList.get(k).id);
+                    }
+                    routeList[@j] = tRoute;
+
+
+                    }
+                    alert("1");
+                    alert(typeof(@CommentsList.get(0).id));
+                    
+
+
+
+                };
+
+
+
+
+                var addPolyline = function(pathes) {
+                    for(var i = 0; i<(pathes.length);i++) {
+                       var polyOptions = {
+                            path: pathes[i],
+                            strokeColor:"#9DC83C",
+                            strokeOpacity: 1,
+                            strokeWeight: 4
+                        };
+
+                        polyLine = new g.Polyline(polyOptions);
+                        polyLine.setMap(map);
+
+
+                    }
+
+                };
+                var colorPolyline = function(path,color) {
+                       var polyOptions = {
+                            path: path,
+                            strokeColor: color,
+                            strokeOpacity: 1,
+                            strokeWeight: 4
+                        };
+                        polyLine = new g.Polyline(polyOptions);
+                        polyLine.setMap(map);
+
+                };
+
+
+                var mapLeftClick = function(event) {
+                    alert(event.latLng);
+                    createClearMarker(event.latLng);
+                };
+
+                var startMarkers = function(mpoint, s) {
+                    if (mpoint) {
+                        if (s == 0) {
+                            var marker = createClearMarker(mpoint);
+                            clearMarkers.push(marker);
+                        } else {
+                            var marker = createMarker(mpoint);
+                            markers.push(marker);
+                            //alert(marker.position);
+                        }
+                        path.push(mpoint);
+                        marker = null;
+                        mpoint = null;
+                    }
+
+
+                };
+
+                var createMarker = function(point,c) {
+                    var imageNormal = new g.MarkerImage(
+                            "https://cdn1.savepice.ru/uploads/2018/5/21/adcd318af42d587b0cb02fd4be7c6cf1-full.png",
+                            new g.Size(11, 11),
+                            new g.Point(0, 0),
+                            new g.Point(6, 6)
+                    );
+                    var imageHover = new g.MarkerImage(
+                            "http://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png",
+                            new g.Size(11, 11),
+                            new g.Point(0, 0),
+                            new g.Point(6, 6)
+                    );
+                    var marker = new g.Marker({
+                        position: point,
+                        map: map,
+                        icon: imageNormal,
+                        draggable: false
+                    });
+
+
+
+                    g.event.addListener(marker, "click", function() {
+
+                        var imageNormal2 = new g.MarkerImage(
+                                "http://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png",
+                                new g.Size(11, 11),
+                                new g.Point(0, 0),
+                                new g.Point(6, 6)
+                        );
+
+                        for (var m = 0; m < markers.length; m++) {
+
+                            if (markers[m] == marker) {
+
+                                //alert(groupMarkers.length);
+                                if(groupMarkers.indexOf(markers[m]) != -1){
+                                    if(groupMarkers[groupMarkers.length-1]==(markers[m])|groupMarkers[0]==(markers[m])) {
+                                        marker.setIcon(imageNormal);
+                                        groupMarkers.pop(markers[m]);
+                                        for(var i = 0; i < selectPathes.length; i++){
+                                            if (find(selectPathes[i],(markers[m].position.toString())) != -1){
+                                                colorPolyline(selectPathes[i], "#9DC83C");
+                                                selectPathes.pop(selectPathes[i]);
+                                                tosPathes.pop(tosPathes[i]);
+                                                pathesId.pop(i);
+                                                distance();
+                                                timers();
+                                                comments();
+                                            }
+                                        }
+                                    }
+
+
+                                }else {
+
+                                    if (groupMarkers.length>0) {
+
+                                        for (var i = 0; i < pathes.length; i++) {
+                                            //alert(find(pathes[0],(marker.position.toString()))!=-1);
+
+                                            if (find(pathes[i],(markers[m].position.toString())) != -1) {
+                                                if (find(pathes[i],(groupMarkers[groupMarkers.length-1].position.toString())) != -1){
+                                                    groupMarkers.push(markers[m]);
+                                                    marker.setIcon(imageNormal2);
+                                                    selectPathes.push(pathes[i]);
+                                                    pathesId.push(i);
+                                                    distance();
+                                                    timers();
+                                                    comments();
+                                                    //alert(selectPathes);
+                                                    colorPolyline(pathes[i], "#1C4B8D");
+                                                    break;
+
+                                                }
+
+                                            }
+                                        }
+                                    }else{
+                                        groupMarkers.push(markers[m]);
+                                        marker.setIcon(imageNormal2);
+                                    }
+                                }
+
+
+                                break;
+                            }
+                        }
+                        m = null;
+                    });
+                    return marker;
+                };
+
+                var createClearMarker = function(point) {
+                    var imageNormal = new g.MarkerImage(
+                            "square_transparent_over.png",
+                            new g.Size(11, 11),
+                            new g.Point(0, 0),
+                            new g.Point(6, 6)
+                    );
+                    var imageHover = new g.MarkerImage(
+                            "square_transparent_over.png",
+                            new g.Size(11, 11),
+                            new g.Point(0, 0),
+                            new g.Point(6, 6)
+                    );
+                    var marker = new g.Marker({
+                        position: point,
+                        map: map,
+                        icon: imageNormal,
+                        draggable: false
+                    });
+                    g.event.addListener(marker, "mouseover", function() {
+                        marker.setIcon(imageHover);
+                    });
+                    g.event.addListener(marker, "mouseout", function() {
+                        marker.setIcon(imageNormal);
+                    });
+
+                    g.event.addListener(marker, "click", function() {
+                        for (var m = 0; m < markers.length; m++) {
+                            if (markers[m] == marker) {
+                                break;
+                            }
+                        }
+                    });
+
+                    return marker;
+                };
+
+                window.onload = function() {
+                    initMap('mapcontainer');
+                    displayTracks();
+                };
+
+
+                function find(array, value) {
+
+                    for (var i = 0; i < array.length; i++) {
+                        if (array[i] == value) return i;
+                    }
+
+                    return -1;
+                }
+
+                function intersect(a, b) {
+                    var t;
+                    if (b.length > a.length) t = b, b = a, a = t; // indexOf to loop over shorter
+                    return a.filter(function (e) {
+                        return b.indexOf(e) > -1;
+                    });
+                }
+
+                function comments() {
+                    routeIntersection=routeList[pathesId[0]];
+                    for (var i=1;i<pathesId.length;i++){
+                        routeIntersection = intersect(routeIntersection,routeList[pathesId[i]]);
+                    }
+                    if (routeIntersection!=""){
+                        //считаем сколько треков включено в общем в этот маршрут
+                        var count=0;
+                        for(i=0;i<routeList.length;i++){
+                            if (find(routeList[i],routeIntersection)!=-1){
+                                count+=1;
+                            }
+                        }
+                        if(count==pathesId.length){
+                            @for(i <- 0 to allTracks.size-1){
+                                if(routeIntersection ==@allTracks.get(i).id){
+
+                                    alert("");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                //Функция для определения длины полилинии
+                function distance() {
+                    var g = google.maps;
+                    var distans=0;
+                    var dist = 0;
+                    for(var i=0;i<selectPathes.length;i++) {
+                        dist = getDistance(selectPathes[i]);
+                        //alert(dist);
+                        //96909.88278427094
+                        //96878.88264350587
+                        distans += Math.round(dist / 10) / 100;
+                    }
+
+
+                    document.getElementById('rast').innerHTML  = distans.toFixed(2);
+                }
+
+                function timers() {
+                    var t=Number(document.getElementById('rast').innerHTML)/Number(document.getElementById('speed').value);
+
+
+                    //alert(t);
+                    var arr1 = new Array(1,21,31,41,51);
+                    var arr2 = new Array(2,3,4,22,23,24,32,33,34,42,43,44,52,53,54);
+                    var diff=t-Math.trunc(t);
+                    var hours = Math.trunc(t);
+                    if (-1 != arr1.indexOf(Math.trunc(t))){
+                        hours+= " час, ";
+                    } else if(-1 !=arr2.indexOf(Math.trunc(t))){
+                        hours+= " часа, ";
+                    } else if(Math.trunc(t)==0){
+                        hours= "";
+                    } else {
+                        hours+= " часов, ";
+                    }
+                    if (diff!=0){
+                        var minutes = Math.trunc(diff*60);
+                        if (-1 != arr1.indexOf(minutes)){
+                            minutes+= " минута";
+                        }
+                        else if(-1 !=arr2.indexOf(minutes)){
+                            minutes+= " минуты";
+                        }
+                        else {
+                            minutes+= " минут";
+                        }
+                        hours+= minutes;
+                    }
+
+                    document.getElementById('time').innerHTML = hours;
+
+
+                }
+
+                function getTime(time,j) {
+                    var time1=0;
+                    //alert(time);
+                    var s = 0;
+                    for(var i=0;i<time.length-1;i++){
+                        if (time[i]==-1||time[i+1]==-1||i==0||i==time.length-2){
+
+                            time1+=Number(pointsDistance(selectPathes[j][i],selectPathes[j][i+1])/1000/(document.getElementById('speed').value));
+                            s+=Number(pointsDistance(selectPathes[j][i],selectPathes[j][i+1]));
+
+                        }else{
+                            time1+=(time[i+1]-time[i])/3600;
+                            //alert(time1);
+                        }
+                    }
+                    return time1;
+                }
+                function pointsDistance(point1, point2) {
+
+                    var marpos1 = new g.Marker({
+                        position: point1
+                    }).getPosition();
+                    var marpos2 = new g.Marker({
+                        position: point2
+                    }).getPosition();
+
+                    var R = 6371000; // km (коэффициент для определения расстояния между двумя точками в километрах)
+                    var dLat = (marpos2.lat() - marpos1.lat()) * Math.PI / 180;
+                    var dLon = (marpos2.lng() - marpos1.lng()) * Math.PI / 180;
+                    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                            Math.cos(marpos1.lat() * Math.PI / 180) * Math.cos(marpos2.lat() * Math.PI / 180) *
+                            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    return R * c;
+                }
+
+                function getDistance(path) {
+                    var dist = 0;
+                    for (var im = 0; im < path.length-1; im++) {
+                        dist = dist + pointsDistance(path[im], path[im+1]);
+                    }
+                    return dist;
+                }
+
+
+                var getMarkers = function() {
+   /*                 var newPoints = "";
+                    for (var m=0; m<markers.length;m++){
+                        newPoints+=(markers[m].position)+";";
+                    }
+                    document.getElementById('points').value += "/"+ newPoints;*/
+                }
+
+                function ChangeSpeed(m) {
+                    document.getElementById('speed').value = m;
+                    document.getElementById('inputSpeed').style.display='none';
+                    timers();
+                }
+                function OtherOn() {
+                    document.getElementById('inputSpeed').style.display='inline';
+                }
+
+
+
+        </script>
+
+        <style type="text/css">
+                html, body { height: 100%; margin: 0; padding:0; }
+                #mapcontainer {width: 800px; height: 600px; border: 1px solid black;}
+                #distanse { margin-top: 15px;}
+                #rast {width: 50px;}
+        </style>
+
+    </head>
+    <body>
+
+
+
+
+        <p>Длина трека: <label id="rast" type="text"></label> км, На путь уйдет примерно: <label id="time"></label></p>
+        <input type="submit" value="пешком" id="b1" onclick="ChangeSpeed(5);" ><input type="submit" value="Велосипед" id="b2" onclick="ChangeSpeed(15);" ><input type="submit" value="Байк" id="b3" onclick="ChangeSpeed(35);" ><input type="submit" value="Машина" id="b4" onclick="ChangeSpeed(70);"><input type="submit" id="b5" value="Другое" onclick="OtherOn();"><div id="inputSpeed" style="display:none;">Введите скорость <input id="speed" type="text" value="5"> км/ч <input type="button" onclick="timers();" value="Определить время"/></div>
+        <div id="mapcontainer"></div>
+        <form method="post" action="/insertGPS" enctype="multipart/form-data">
+            <input type=file name="GpsFile">
+            <input type="submit" value="Отобразить">
+        </form>
+
+
+        <form method="post" action="/saveGPS">
+            <input type="text" id="points" name="points" >
+            <input type="submit" id="noneButton" value="Сохранить" onclick="getMarkers();">
+        </form>
+
+        <input type="submit" value="Скачать в формате .gpx"  >
+        @CommentsList.get(1).comment
+        <div id="map"></div>
+    </body>
+</html>

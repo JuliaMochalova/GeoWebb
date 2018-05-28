@@ -1,0 +1,20 @@
+# Routes
+# This file defines all application Tracks (Higher priority Tracks first)
+# ~~~~
+
+# Home page
+GET     /index                           controllers.Application.index()
+GET     /                                controllers.Application.index()
+GET     /insertGPS                       controllers.Application.index()
+GET     /all                             controllers.Application.all()
+GET     /saveGPS                         controllers.Application.index()
+
+GET     /clear                           controllers.Application.main()
+
+
+POST    /insertGPS                       controllers.Application.insertGPS()
+POST    /saveGPS                         controllers.Application.saveGPS()
+
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file                    controllers.Assets.at(path="/public", file)

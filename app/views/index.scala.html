@@ -1,0 +1,494 @@
+@(sectors: Array[String], gpsForm: Form[tLatLng], msg:String, pointsList: PointsList)
+
+
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Simple Map</title>
+        <meta name="viewport" content="initial-scale=1.0">
+        <meta charset="utf-8">
+    </head>
+    <body>
+        <div id="map"></div>
+        <script src="http://mourner.github.io/simplify-js/simplify.js"></script>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1YyN43QV769nJURYMcbfriPf_BvonbVc&libraries=geometry&callback=initMap" async defer></script>
+        <script type="text/javascript">
+
+                var map = null;
+                var polyLine;
+                var tmpPolyLine;
+                var markers = [];
+                var vmarkers = [];
+                var pathes=[];
+                var time=[];
+                var g = google.maps;
+
+
+                function initMap() {
+
+                    @if(!msg.equals("")){
+                    alert("Трек успешно сохранен");
+                    }
+                    var g = google.maps;
+
+
+                    var mapOptions = {
+                        zoom: 9,
+                        center: new g.LatLng(52.53667, 103.88639),
+                        mapTypeId: g.MapTypeId.ROADMAP,
+                        draggableCursor: 'auto',
+                        draggingCursor: 'move',
+                        disableDoubleClickZoom: true
+                    };
+                    map = new g.Map(document.getElementById("mapcontainer"), mapOptions);
+
+                    g.event.addListener(map, "click", function (event) {
+                        startMarkers(event.latLng, -1);
+                    });
+
+                    var slider = document.getElementById("myRange");
+
+                    slider.oninput = function() {
+                        //displayTrack(this.value);
+
+                    }
+
+
+                    mapHolder = null;
+                    mapOptions = null;
+
+                    initPolyline();
+                    displayAllTracks();
+
+
+                    function initPolyline() {
+                        var polyOptions = {
+                            strokeColor: "#9DC83C",
+                            strokeOpacity: 0.8,
+                            strokeWeight: 4
+                        };
+                        var tmpPolyOptions = {
+                            strokeColor: "#6eff68",
+                            strokeOpacity: 0.4,
+                            strokeWeight: 4
+                        };
+                        polyLine = new g.Polyline(polyOptions);
+                        polyLine.setMap(map);
+                        tmpPolyLine = new g.Polyline(tmpPolyOptions);
+                        tmpPolyLine.setMap(map);
+
+
+                        //alert("a");
+                        var points = [{x: 23.4545, y: 53.352525},{x: 25.34245, y: 52},{x: 22, y: 56},{x: 21, y: 58},{x: 33.999999, y: 73}];
+                        var simplified = simplify(points, 1.0,true);
+                        //alert(simplified[0].x);
+
+
+                    };
+
+
+
+                    function displayAllTracks() {
+                        @for(j <- 0 to pointsList.pointsList.size()-1){
+                            poly = [];
+                                @for(i <- 0 to (pointsList.get(j).length-1)){
+                                    poly.push(new g.LatLng(@pointsList.get(j)(i)));
+                                }
+                            pathes[@j] = new g.Polyline({
+                            path: poly});
+                        }
+                        displayTrack(0);
+                        distance();
+
+                    }
+
+
+
+                    function displayTrack(c) {
+                        initPolyline();
+                        markers = [];
+                        vmarkers = [];
+                        time=[];
+                        if(c==0) {
+                            @if(!sectors.length.equals(1)&& !sectors.length.equals(0)){
+                            @for(i <- 0 to (sectors.length-1)){
+                            startMarkers(new g.LatLng(@sectors(i)), @sectors(i).split(",")(2));
+                            }
+                            }
+                        }else{
+                        }
+                        //alert(c);
+
+                    };
+                    function startMarkers(mpoint,t){
+                        if (mpoint) {
+                            var marker = createMarker(mpoint);
+
+                            markers.push(marker);
+                            time.push(t);
+                            if (markers.length != 1) {
+                                var vmarker = createVMarker(mpoint);
+                                vmarkers.push(vmarker);
+                                vmarker = null;
+                            }
+                            var path = polyLine.getPath();
+                            path.push(mpoint);
+                            marker = null;
+                        }
+                        mpoint = null;
+                    };
+
+                    function createMarker(point) {
+                        var imageNormal = new g.MarkerImage(
+                                "https://cdn1.savepice.ru/uploads/2018/5/21/adcd318af42d587b0cb02fd4be7c6cf1-full.png",
+                                new g.Size(11, 11),
+                                new g.Point(0, 0),
+                                new g.Point(6, 6)
+                        );
+                        var imageHover = new g.MarkerImage(
+                                "http://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png",
+                                new g.Size(11, 11),
+                                new g.Point(0, 0),
+                                new g.Point(6, 6)
+                        );
+                        var marker = new g.Marker({
+                            position: point,
+                            map: map,
+                            icon: imageNormal,
+                            draggable: true
+                        });
+                        g.event.addListener(marker, "mouseover", function() {
+                            marker.setIcon(imageHover);
+                        });
+                        g.event.addListener(marker, "mouseout", function() {
+                            marker.setIcon(imageNormal);
+                        });
+                        g.event.addListener(marker, "drag", function() {
+                            for (var m = 0; m < markers.length; m++) {
+                                if (markers[m] == marker) {
+                                    polyLine.getPath().setAt(m, marker.getPosition());
+                                    moveVMarker(m);
+                                    break;
+                                }
+                            }
+                            m = null;
+                        });
+                        g.event.addListener(marker, "click", function() {
+                            for (var m = 0; m < markers.length; m++) {
+                                if (markers[m] == marker) {
+                                    marker.setMap(null);
+                                    markers.splice(m, 1);
+                                    time.splice(m,1);
+                                    polyLine.getPath().removeAt(m);
+                                    removeVMarkers(m);
+                                    break;
+                                }
+                            }
+                            m = null;
+                        });
+
+                        return marker;
+                    };
+
+                    function createVMarker(point) {
+                        var prevpoint = markers[markers.length-2].getPosition();
+                        var imageNormal = new g.MarkerImage(
+                                "square_transparent.png",
+                                new g.Size(11, 11),
+                                new g.Point(0, 0),
+                                new g.Point(6, 6)
+                        );
+                        var imageHover = new g.MarkerImage(
+                                "square_transparent_over.png",
+                                new g.Size(11, 11),
+                                new g.Point(0, 0),
+                                new g.Point(6, 6)
+                        );
+                        var marker = new g.Marker({
+                            position: new g.LatLng(
+                                    point.lat() - (0.5 * (point.lat() - prevpoint.lat())),
+                                    point.lng() - (0.5 * (point.lng() - prevpoint.lng()))
+                            ),
+                            map: map,
+                            icon: imageNormal,
+                            draggable: true
+                        });
+                        g.event.addListener(marker, "mouseover", function() {
+                            marker.setIcon(imageHover);
+                        });
+                        g.event.addListener(marker, "mouseout", function() {
+                            marker.setIcon(imageNormal);
+                        });
+                        g.event.addListener(marker, "dragstart", function() {
+                            for (var m = 0; m < vmarkers.length; m++) {
+                                if (vmarkers[m] == marker) {
+                                    var tmpPath = tmpPolyLine.getPath();
+                                    tmpPath.push(markers[m].getPosition());
+                                    tmpPath.push(vmarkers[m].getPosition());
+                                    tmpPath.push(markers[m+1].getPosition());
+                                    break;
+                                }
+                            }
+                            m = null;
+                        });
+                        g.event.addListener(marker, "drag", function() {
+                            for (var m = 0; m < vmarkers.length; m++) {
+                                if (vmarkers[m] == marker) {
+                                    tmpPolyLine.getPath().setAt(1, marker.getPosition());
+                                    break;
+                                }
+                            }
+                            m = null;
+                        });
+                        g.event.addListener(marker, "dragend", function() {
+                            for (var m = 0; m < vmarkers.length; m++) {
+                                if (vmarkers[m] == marker) {
+                                    var newpos = marker.getPosition();
+                                    var startMarkerPos = markers[m].getPosition();
+                                    var firstVPos = new g.LatLng(
+                                            newpos.lat() - (0.5 * (newpos.lat() - startMarkerPos.lat())),
+                                            newpos.lng() - (0.5 * (newpos.lng() - startMarkerPos.lng()))
+                                    );
+                                    var endMarkerPos = markers[m+1].getPosition();
+                                    var secondVPos = new g.LatLng(
+                                            newpos.lat() - (0.5 * (newpos.lat() - endMarkerPos.lat())),
+                                            newpos.lng() - (0.5 * (newpos.lng() - endMarkerPos.lng()))
+                                    );
+                                    var newVMarker = createVMarker(secondVPos);
+                                    newVMarker.setPosition(secondVPos);//apply the correct position to the vmarker
+                                    var newMarker = createMarker(newpos);
+                                    markers.splice(m+1, 0, newMarker);
+                                    time.splice(m+1,0,-1);
+                                    //alert(time);
+                                    polyLine.getPath().insertAt(m+1, newpos);
+                                    marker.setPosition(firstVPos);
+                                    vmarkers.splice(m+1, 0, newVMarker);
+                                    tmpPolyLine.getPath().removeAt(2);
+                                    tmpPolyLine.getPath().removeAt(1);
+                                    tmpPolyLine.getPath().removeAt(0);
+                                    newpos = null;
+                                    startMarkerPos = null;
+                                    firstVPos = null;
+                                    endMarkerPos = null;
+                                    secondVPos = null;
+                                    newVMarker = null;
+                                    newMarker = null;
+                                    break;
+                                }
+                            }
+                        });
+                        return marker;
+                    };
+
+                    function moveVMarker(index) {
+                        var newpos = markers[index].getPosition();
+                        if (index != 0) {
+                            var prevpos = markers[index-1].getPosition();
+                            vmarkers[index-1].setPosition(new g.LatLng(
+                                    newpos.lat() - (0.5 * (newpos.lat() - prevpos.lat())),
+                                    newpos.lng() - (0.5 * (newpos.lng() - prevpos.lng()))
+                            ));
+                            prevpos = null;
+                        }
+                        if (index != markers.length - 1) {
+                            var nextpos = markers[index+1].getPosition();
+                            vmarkers[index].setPosition(new g.LatLng(
+                                    newpos.lat() - (0.5 * (newpos.lat() - nextpos.lat())),
+                                    newpos.lng() - (0.5 * (newpos.lng() - nextpos.lng()))
+                            ));
+                            nextpos = null;
+                        }
+                        newpos = null;
+                        index = null;
+                    };
+
+                    function removeVMarkers(index) {
+                        if (markers.length > 0) {//clicked marker has already been deleted
+                            if (index != markers.length) {
+                                vmarkers[index].setMap(null);
+                                vmarkers.splice(index, 1);
+                            } else {
+                                vmarkers[index-1].setMap(null);
+                                vmarkers.splice(index-1, 1);
+                            }
+                        }
+                        if (index != 0 && index != markers.length) {
+                            var prevpos = markers[index-1].getPosition();
+                            var newpos = markers[index].getPosition();
+                            vmarkers[index-1].setPosition(new g.LatLng(
+                                    newpos.lat() - (0.5 * (newpos.lat() - prevpos.lat())),
+                                    newpos.lng() - (0.5 * (newpos.lng() - prevpos.lng()))
+                            ));
+                            prevpos = null;
+                            newpos = null;
+                        }
+                        index = null;
+                    };
+
+
+                };
+
+                //Функция для определения длины полилинии
+                function distance() {
+                    var dist = 0;
+                    if (markers.length > 0) {
+                        for (var im = 0; im < markers.length - 1; im++) {
+                            var marpos1 = markers[im].getPosition();
+                            var marpos2 = markers[im + 1].getPosition();
+
+                            var R = 6371000; // km (коэффициент для определения расстояния между двумя точками в километрах)
+                            var dLat = (marpos2.lat() - marpos1.lat()) * Math.PI / 180;
+                            var dLon = (marpos2.lng() - marpos1.lng()) * Math.PI / 180;
+                            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                                    Math.cos(marpos1.lat() * Math.PI / 180) * Math.cos(marpos2.lat() * Math.PI / 180) *
+                                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                            var d = R * c;
+                            dist = dist + d;
+                        }
+                        var distans = Math.round(dist / 10) / 100;
+                        document.getElementById('rast').innerHTML = distans;
+                    }
+                }
+
+                function timer() {
+                    var time = 0;
+                    var arr1 = new Array(1,21,31,41,51);
+                    var arr2 = new Array(2,3,4,22,23,24,32,33,34,42,43,44,52,53,54);
+
+                    if (markers.length > 0) {
+
+                        time =Number(document.getElementById('rast').innerHTML)/(document.getElementById('speed').value);
+                        var diff=time-Math.trunc(time);
+                        var hours = Math.trunc(time);
+                        if (-1 != arr1.indexOf(Math.trunc(time))){
+                            hours+= " час, ";
+                        } else if(-1 !=arr2.indexOf(Math.trunc(time))){
+                            hours+= " часа, ";
+                        } else if(Math.trunc(time)==0){
+                            hours= "";
+                        } else {
+                            hours+= " часов, ";
+                        }
+                        if (diff!=0){
+                            var minutes = Math.trunc(diff*60);
+                            if (-1 != arr1.indexOf(minutes)){
+                                minutes+= " минута";
+                            }
+                            else if(-1 !=arr2.indexOf(minutes)){
+                                minutes+= " минуты";
+                            }
+                            else {
+                                minutes+= " минут";
+                            }
+                            hours+= minutes;
+                        }
+                        document.getElementById('time').value = hours;
+
+
+
+                    }
+                }
+
+                function getMarkers() {
+                    var g = google.maps;
+                    var newTracks="";
+                    var newTrack="";
+                    var intersection="";
+                    var newPoint = [];
+
+                    if(pathes.length>0) {
+                        for (var m = 0; m < markers.length; m++) {
+                            if (g.geometry.poly.isLocationOnEdge(markers[m].position, pathes[0], 0.0001)) {
+                                newPoint.push(markers[m].position+","+time[m]);
+                                intersection+=(markers[m].position) + "," + time[m] + ";";
+                            }
+                        }
+                        //alert(newPoint[0]+" "+ newPoint[newPoint.length-1]);
+
+                        var inStartPoint=newPoint[0];
+                        var inEndPoint=newPoint[newPoint.length-1];
+                        var pointt=0;
+                        var c=0;
+                        for (var m = 0; m < markers.length; m++) {
+                            if ((markers[m].position+","+time[m])!=inEndPoint&(markers[m].position+","+time[m])!=inStartPoint&m!=markers.length-1) {
+                                if (c==0) {
+                                    newTrack += (markers[m].position) + "," + time[m] + ";";
+                                }
+                            }
+                            else{
+                                if((markers[m].position+","+time[m])==inStartPoint){
+                                    pointt=inStartPoint;
+                                    newTrack+=pointt + ";";
+                                    newTracks+=newTrack+"!";
+                                    c = 1;
+                                }else if ((markers[m].position+","+time[m])==inEndPoint){
+                                    pointt=inEndPoint;
+                                    c=0;
+                                    newTrack=pointt+ ";";
+                                }else{
+                                    pointt=markers[m].position+","+time[m];
+                                    newTrack+=pointt + ";";
+                                    newTracks+=newTrack+"!";
+                                    newTrack=pointt+ ";";
+
+
+                                }
+                            }
+                        }
+
+                        newTracks+=intersection+"!"+inStartPoint+";"+inEndPoint+";"+"0";
+                        //alert(newTracks);
+
+                    }else {
+                        var newPoints = "";
+                        for (var m = 0; m < markers.length; m++) {
+                            //array1.fill(0, 2, 4); для timeFrom
+                            newPoints += (markers[m].position) + ","+time[m]+";";
+                        }
+
+                        newTracks+=newPoints+"!";
+                    }
+                    document.getElementById('points').value += newTracks;
+
+
+                }
+
+
+
+        </script>
+
+        <style type="text/css">
+                html, body { height: 100%; margin: 0; padding:0; }
+                #mapcontainer {width: 800px; height: 600px; border: 1px solid black;}
+                #distanse { margin-top: 15px;}
+                #rast {width: 50px;}
+        </style>
+        <p>Длина трека: <label id="rast"></label> км, Введите скорость: <input id="speed" type="text" value="5">
+            <input type="button" onclick="timer();" value="Определить время"/> На путь уйдет примерно: <input id="time" type="text" readonly></p>
+        <div id="mapcontainer"></div>
+
+        <form method="post" action="/insertGPS" enctype="multipart/form-data">
+            <input type=file name="GpsFile">
+            <input type="submit" value="Отобразить">
+        </form>
+
+        <form method="post" action="/saveGPS">
+            Имя: <input type="text" id="name" name="name" >
+             Комментарий: <input type="text" id="comment" name="comment" >
+            <input type="text" id="points" name="points" style="display:none;">
+            <input type="submit" id="noneButton" value="Сохранить" onclick="getMarkers();">
+        </form>
+
+        <div class="slidecontainer">
+            Упрощение по алгоритму Дугласа-Пекера     <input type="range" min="0" max="5" value="1" step="0.01" class="slider" id="myRange">
+        </div>
+
+        <form method="get" action="/all">
+            <input type="submit" value="Конструктор маршрутов">
+        </form>
+        <input type="submit" value="Скачать в формате .gpx"  >
+
+    </body>
+</html>
